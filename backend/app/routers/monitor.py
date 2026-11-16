@@ -1,4 +1,4 @@
-"""采集监控接口：维护监控指标，覆盖提交校验、启用监控、停用监控等动作。"""
+"""采集监控接口：维护监控指标，并读取响应校验数据集写下的检测窗口结论。"""
 from __future__ import annotations
 
 from typing import Any
@@ -14,6 +14,7 @@ service = MonitorService()
 
 LIST_FIELDS = ["指标编号", "关联端点", "成功率阈值", "延迟阈值", "错误率告警", "检测频率", "通知渠道", "静默分钟"]
 STATUSES = ["草稿", "待校验", "已启用", "已停用"]
+CONCLUSIONS = ["通过", "告警", "阻断", "待判定"]
 
 
 @router.get("", response_model=PageResult[dict])
@@ -27,6 +28,25 @@ def list_entries(
     if size > 200:
         raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
     items, total = service.list_entries(keyword=keyword, status=status, page=page, size=size)
+    return PageResult(items=items, total=total, page=page, size=size)
+
+
+@router.get("/windows", response_model=PageResult[dict])
+def list_windows(
+    keyword: str | None = Query(default=None, description="按检测窗口或结论说明检索"),
+    status: str | None = Query(default=None, description="开启、已关闭"),
+    conclusion: str | None = Query(default=None, description="通过、告警、阻断、待判定"),
+    page: int = 1,
+    size: int = 20,
+) -> PageResult[dict]:
+    """监控读取的检测窗口结果：每个检测窗口只有一条可解释结论。"""
+    if size > 200:
+        raise HTTPException(status_code=400, detail="每页最多 200 条，请缩小分页范围")
+    if conclusion and conclusion not in CONCLUSIONS:
+        raise HTTPException(status_code=400, detail="结论只支持通过、告警、阻断、待判定")
+    items, total = service.list_windows(
+        keyword=keyword, status=status, conclusion=conclusion, page=page, size=size
+    )
     return PageResult(items=items, total=total, page=page, size=size)
 
 

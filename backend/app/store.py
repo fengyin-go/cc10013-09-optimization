@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.seed import SEED_ROWS
+from app.seed import CLOSED_WINDOWS, SEED_ROWS
 
 
 class Store:
@@ -14,9 +14,12 @@ class Store:
         self._tables: dict[str, list[dict[str, Any]]] = {
             name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        self.closed_windows: dict[str, str] = dict(CLOSED_WINDOWS)
 
     def module_names(self) -> list[str]:
-        return sorted(self._tables)
+        # 下划线开头/包含下划线的表是内部派生表（如响应校验数据集、窗口结论、
+        # 异常待处理队列），只在对应业务里直接读取，不进入运营概览的模块清单。
+        return sorted(name for name in self._tables if "_" not in name)
 
     def rows(self, module: str) -> list[dict[str, Any]]:
         return self._tables.setdefault(module, [])
